@@ -148,3 +148,16 @@ st.dataframe(cm_df)
 # ===============================
 st.subheader("📄 Classification Report")
 st.code(classification_report(y_test, y_pred, zero_division=0))
+st.subheader("⬇️ Download Test Dataset")
+
+TEST_CSV_URL = (
+    "https://raw.githubusercontent.com/"
+    "shromonamittra-cpu/ML_Assignment_2/main/wine_quality_test.csv"
+)
+
+st.markdown(
+    f"[📥 Download Test Data (CSV)]({TEST_CSV_URL})",
+    unsafe_allow_html=True
+)
+
+
