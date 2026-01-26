@@ -58,6 +58,27 @@ def load_wine_quality():
 # ===============================
 st.title("Machine Learning Assignment 2")
 st.subheader("Wine Quality Classification (Red + White)")
+# ===============================
+# Download test dataset
+# ===============================
+st.subheader("⬇️ Download Test Dataset")
+
+TEST_CSV_URL = "https://raw.githubusercontent.com/shromonamittra-cpu/ML_Assignment_2/main/wine_quality_test.csv"
+
+st.markdown(f"[📄 View raw CSV]({TEST_CSV_URL})")
+
+try:
+    test_df = pd.read_csv(TEST_CSV_URL)
+    csv_bytes = test_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        label="📥 Download wine_quality_test.csv",
+        data=csv_bytes,
+        file_name="wine_quality_test.csv",
+        mime="text/csv",
+    )
+except Exception as e:
+    st.warning("Download button unavailable. Use the link above.")
 
 df = load_wine_quality()
 
@@ -148,16 +169,3 @@ st.dataframe(cm_df)
 # ===============================
 st.subheader("📄 Classification Report")
 st.code(classification_report(y_test, y_pred, zero_division=0))
-st.subheader("⬇️ Download Test Dataset")
-
-TEST_CSV_URL = (
-    "https://raw.githubusercontent.com/"
-    "shromonamittra-cpu/ML_Assignment_2/main/wine_quality_test.csv"
-)
-
-st.markdown(
-    f"[📥 Download Test Data (CSV)]({TEST_CSV_URL})",
-    unsafe_allow_html=True
-)
-
-
