@@ -1,85 +1,80 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
+
+from model.evaluation import evaluate_multiclass
 
 # ===============================
 # Page config + startup render
 # ===============================
 st.set_page_config(page_title="ML Assignment 2", layout="wide")
 st.write("✅ App started")
-
 # ===============================
-# Safe model imports
+# Paths to pretrained models
 # ===============================
-from model.logistic import build_model as build_logistic
-from model.decision_tree import build_model as build_dt
-from model.knn import build_model as build_knn
-from model.naive_bayes import build_model as build_nb
-from model.random_forest import build_model as build_rf
-
-# XGBoost is OPTIONAL (Streamlit Cloud safe)
-try:
-    from model.xgboost import build_model as build_xgb
-    XGB_AVAILABLE = True
-except Exception:
-    XGB_AVAILABLE = False
-
-from model.evaluation import evaluate_multiclass
-
-
+MODEL_PATHS = {
+    "Logistic Regression": "artifacts/logistic.pkl",
+    "Decision Tree": "artifacts/decision_tree.pkl",
+    "KNN": "artifacts/knn.pkl",
+    "Naive Bayes": "artifacts/naive_bayes.pkl",
+    "Random Forest": "artifacts/random_forest.pkl",
+    "XGBoost": "artifacts/xgboost.pkl",
+}
 # ===============================
 # Dataset loader
 # ===============================
 @st.cache_data(show_spinner=False)
 def load_wine_quality():
-    try:
-        red_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-red.csv"
-        white_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv"
+    red_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-red.csv"
+    white_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv"
 
-        df_red = pd.read_csv(red_url, sep=";")
-        df_white = pd.read_csv(white_url, sep=";")
+    df_red = pd.read_csv(red_url, sep=";")
+    df_white = pd.read_csv(white_url, sep=";")
 
-        df_red["wine_type"] = 0
-        df_white["wine_type"] = 1
+    df_red["wine_type"] = 0
+    df_white["wine_type"] = 1
 
-        return pd.concat([df_red, df_white], ignore_index=True)
+    return pd.concat([df_red, df_white], ignore_index=True)
 
-    except Exception as e:
-        st.error("❌ Failed to load dataset")
-        st.error(str(e))
-        st.stop()
-
+# ===============================
+# Load model safely
+# ===============================
+@st.cache_resource(show_spinner=False)
+def load_model(path):
+    return joblib.load(path)
 
 # ===============================
 # UI
 # ===============================
 st.title("Machine Learning Assignment 2")
 st.subheader("Wine Quality Classification (Red + White)")
+
 # ===============================
 # Download test dataset
 # ===============================
 st.subheader("⬇️ Download Test Dataset")
 
 TEST_CSV_URL = "https://raw.githubusercontent.com/shromonamittra-cpu/ML_Assignment_2/main/wine_quality_test.csv"
-
 st.markdown(f"[📄 View raw CSV]({TEST_CSV_URL})")
 
 try:
     test_df = pd.read_csv(TEST_CSV_URL)
-    csv_bytes = test_df.to_csv(index=False).encode("utf-8")
-
     st.download_button(
         label="📥 Download wine_quality_test.csv",
-        data=csv_bytes,
+        data=test_df.to_csv(index=False).encode("utf-8"),
         file_name="wine_quality_test.csv",
         mime="text/csv",
     )
-except Exception as e:
-    st.warning("Download button unavailable. Use the link above.")
+except Exception:
+    st.warning("Test dataset not available.")
 
+# ===============================
+# Load data
+# ===============================
 df = load_wine_quality()
 
 with st.expander("📊 Dataset Preview"):
@@ -90,52 +85,39 @@ X = df.drop(columns=["quality"])
 y = df["quality"].astype(int)
 
 classes = np.sort(y.unique())
-num_classes = len(classes)
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y,
-    test_size=0.2,
-    random_state=42,
-    stratify=y
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
 # ===============================
 # Model selection
 # ===============================
-model_dict = {
-    "Logistic Regression": build_logistic(),
-    "Decision Tree": build_dt(),
-    "KNN": build_knn(),
-    "Naive Bayes": build_nb(),
-    "Random Forest": build_rf(),
-}
-
-if XGB_AVAILABLE:
-    model_dict["XGBoost"] = build_xgb(num_classes)
-
-model_name = st.selectbox("Select Model", list(model_dict.keys()))
-model = model_dict[model_name]
+available_models = [m for m in MODEL_PATHS if MODEL_PATHS[m] is not None]
+model_name = st.selectbox("Select Model", available_models)
 
 # ===============================
-# Train + Evaluate
+# Load model (NO TRAINING)
 # ===============================
-with st.spinner("Training model..."):
-    model.fit(X_train, y_train)
+try:
+    model = load_model(MODEL_PATHS[model_name])
+except Exception as e:
+    st.error("❌ Failed to load model file")
+    st.error(str(e))
+    st.stop()
 
+# ===============================
+# Predict + Evaluate
+# ===============================
 y_pred = model.predict(X_test)
 
 if hasattr(model, "predict_proba"):
     y_proba = model.predict_proba(X_test)
 else:
-    st.error("Selected model does not support probability prediction.")
+    st.error("Model does not support probability prediction.")
     st.stop()
 
-metrics = evaluate_multiclass(
-    y_test,
-    y_pred,
-    y_proba,
-    classes=classes
-)
+metrics = evaluate_multiclass(y_test, y_pred, y_proba, classes)
 
 # ===============================
 # Metrics display
@@ -161,7 +143,6 @@ cm_df = pd.DataFrame(
     index=[f"True {c}" for c in classes],
     columns=[f"Pred {c}" for c in classes]
 )
-
 st.dataframe(cm_df)
 
 # ===============================
@@ -169,3 +150,4 @@ st.dataframe(cm_df)
 # ===============================
 st.subheader("📄 Classification Report")
 st.code(classification_report(y_test, y_pred, zero_division=0))
+
