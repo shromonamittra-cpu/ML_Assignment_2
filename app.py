@@ -9,10 +9,11 @@ from sklearn.metrics import confusion_matrix, classification_report
 from model.evaluation import evaluate_multiclass
 
 # ===============================
-# Page config + startup render
+# Page config
 # ===============================
 st.set_page_config(page_title="ML Assignment 2", layout="wide")
 st.write("✅ App started")
+
 # ===============================
 # Paths to pretrained models
 # ===============================
@@ -24,6 +25,7 @@ MODEL_PATHS = {
     "Random Forest": "artifacts/random_forest.pkl",
     "XGBoost": "artifacts/xgboost.pkl",
 }
+
 # ===============================
 # Dataset loader
 # ===============================
@@ -150,4 +152,3 @@ st.dataframe(cm_df)
 # ===============================
 st.subheader("📄 Classification Report")
 st.code(classification_report(y_test, y_pred, zero_division=0))
-
