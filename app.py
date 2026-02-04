@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
@@ -13,7 +12,7 @@ st.set_page_config(page_title="ML Assignment 2", layout="wide")
 st.write("✅ App started")
 
 # ===============================
-# Safe model imports (kept as-is)
+# Safe model imports
 # ===============================
 from model.logistic import build_model as build_logistic
 from model.decision_tree import build_model as build_dt
@@ -29,7 +28,6 @@ except Exception:
     XGB_AVAILABLE = False
 
 from model.evaluation import evaluate_multiclass
-
 
 # ===============================
 # Dataset loader
@@ -55,10 +53,39 @@ def load_wine_quality():
 
 
 # ===============================
+# Cached training (only when requested)
+# ===============================
+@st.cache_resource(show_spinner=False)
+def train_selected_model(model_name: str, num_classes: int, X_train: pd.DataFrame, y_train: pd.Series):
+    if model_name == "Logistic Regression":
+        model = build_logistic()
+    elif model_name == "Decision Tree":
+        model = build_dt()
+    elif model_name == "KNN":
+        model = build_knn()
+    elif model_name == "Naive Bayes":
+        model = build_nb()
+    elif model_name == "Random Forest":
+        model = build_rf()
+    elif model_name == "XGBoost":
+        model = build_xgb(num_classes)
+    else:
+        raise ValueError("Unknown model selected")
+
+    model.fit(X_train, y_train)
+    return model
+
+
+# ===============================
 # UI
 # ===============================
 st.title("Machine Learning Assignment 2")
 st.subheader("Wine Quality Classification (Red + White)")
+
+st.caption(
+    "Compare multiple machine learning classification models for predicting wine quality "
+    "using physicochemical properties from the UCI Wine Quality dataset."
+)
 
 # ===============================
 # Download test dataset
@@ -71,7 +98,6 @@ st.markdown(f"[📄 View raw CSV]({TEST_CSV_URL})")
 try:
     test_df = pd.read_csv(TEST_CSV_URL)
     csv_bytes = test_df.to_csv(index=False).encode("utf-8")
-
     st.download_button(
         label="📥 Download wine_quality_test.csv",
         data=csv_bytes,
@@ -81,6 +107,9 @@ try:
 except Exception:
     st.warning("Download button unavailable. Use the link above.")
 
+# ===============================
+# Load dataset
+# ===============================
 df = load_wine_quality()
 
 with st.expander("📊 Dataset Preview"):
@@ -104,46 +133,51 @@ X_train, X_test, y_train, y_test = train_test_split(
 # ===============================
 # Model selection
 # ===============================
-MODEL_PATHS = {
-    "Logistic Regression": "artifacts/logistic.pkl",
-    "Decision Tree": "artifacts/decision_tree.pkl",
-    "KNN": "artifacts/knn.pkl",
-    "Naive Bayes": "artifacts/naive_bayes.pkl",
-    "Random Forest": "artifacts/random_forest.pkl",
-}
-
+model_names = ["Logistic Regression", "Decision Tree", "KNN", "Naive Bayes", "Random Forest"]
 if XGB_AVAILABLE:
-    MODEL_PATHS["XGBoost"] = "artifacts/xgboost.pkl"
+    model_names.append("XGBoost")
 
-model_name = st.selectbox("Select Model", list(MODEL_PATHS.keys()))
+model_name = st.selectbox("Select Model", model_names)
 
 # ===============================
-# Load pre-trained model (NO TRAINING)
+# Train only on button click (prevents auto retraining)
 # ===============================
-try:
-    model = joblib.load(MODEL_PATHS[model_name])
-except Exception as e:
-    st.error("❌ Failed to load pre-trained model")
-    st.error(str(e))
+train_clicked = st.button("▶️ Run Evaluation", type="primary")
+
+if not train_clicked and "last_results" not in st.session_state:
+    st.info("Select a model and click **Run Evaluation** to view metrics.")
     st.stop()
 
-# ===============================
-# Predict + Evaluate
-# ===============================
-y_pred = model.predict(X_test)
+# If user clicked, train & store results (cached model + deterministic split)
+if train_clicked:
+    with st.spinner("Training and evaluating..."):
+        model = train_selected_model(model_name, num_classes, X_train, y_train)
 
-if hasattr(model, "predict_proba"):
-    y_proba = model.predict_proba(X_test)
-else:
-    st.error("Selected model does not support probability prediction.")
-    st.stop()
+        y_pred = model.predict(X_test)
 
-metrics = evaluate_multiclass(
-    y_test,
-    y_pred,
-    y_proba,
-    classes=classes
-)
+        if hasattr(model, "predict_proba"):
+            y_proba = model.predict_proba(X_test)
+        else:
+            st.error("Selected model does not support probability prediction.")
+            st.stop()
+
+        metrics = evaluate_multiclass(
+            y_test,
+            y_pred,
+            y_proba,
+            classes=classes
+        )
+
+        st.session_state["last_results"] = {
+            "model_name": model_name,
+            "y_pred": y_pred,
+            "metrics": metrics
+        }
+
+# Use last stored results (so it doesn’t disappear on rerun)
+results = st.session_state["last_results"]
+y_pred = results["y_pred"]
+metrics = results["metrics"]
 
 # ===============================
 # Metrics display
