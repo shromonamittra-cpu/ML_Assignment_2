@@ -1,39 +1,73 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 
-from sklearn.metrics import (
-    accuracy_score,
-    roc_auc_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    matthews_corrcoef,
-    confusion_matrix,
-    classification_report
-)
-# --------------------------------------------------
-# Page configuration
-# --------------------------------------------------
-st.set_page_config(
-    page_title="Wine Quality ML Classifier",
-    layout="centered"
-)
-# --------------------------------------------------
-# Title and description
-# --------------------------------------------------
-st.title("Wine Quality Classification App")
-st.caption(
-    "An interactive comparison of multiple supervised machine learning models for "
-    "multiclass wine quality prediction using physicochemical attributes."
-)
-st.markdown("---")
-# --------------------------------------------------
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, classification_report
+
+# ===============================
+# Page config + startup render
+# ===============================
+st.set_page_config(page_title="ML Assignment 2", layout="wide")
+st.write("✅ App started")
+
+# ===============================
+# Safe model imports (kept as-is)
+# ===============================
+from model.logistic import build_model as build_logistic
+from model.decision_tree import build_model as build_dt
+from model.knn import build_model as build_knn
+from model.naive_bayes import build_model as build_nb
+from model.random_forest import build_model as build_rf
+
+# XGBoost is OPTIONAL (Streamlit Cloud safe)
+try:
+    from model.xgboost import build_model as build_xgb
+    XGB_AVAILABLE = True
+except Exception:
+    XGB_AVAILABLE = False
+
+from model.evaluation import evaluate_multiclass
+
+
+# ===============================
+# Dataset loader
+# ===============================
+@st.cache_data(show_spinner=False)
+def load_wine_quality():
+    try:
+        red_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-red.csv"
+        white_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv"
+
+        df_red = pd.read_csv(red_url, sep=";")
+        df_white = pd.read_csv(white_url, sep=";")
+
+        df_red["wine_type"] = 0
+        df_white["wine_type"] = 1
+
+        return pd.concat([df_red, df_white], ignore_index=True)
+
+    except Exception as e:
+        st.error("❌ Failed to load dataset")
+        st.error(str(e))
+        st.stop()
+
+
+# ===============================
+# UI
+# ===============================
+st.title("Machine Learning Assignment 2")
+st.subheader("Wine Quality Classification (Red + White)")
+
+# ===============================
 # Download test dataset
-# --------------------------------------------------
-st.subheader("Download Dataset")
+# ===============================
+st.subheader("⬇️ Download Test Dataset")
+
 TEST_CSV_URL = "https://raw.githubusercontent.com/shromonamittra-cpu/ML_Assignment_2/main/wine_quality_test.csv"
 st.markdown(f"[📄 View raw CSV]({TEST_CSV_URL})")
+
 try:
     test_df = pd.read_csv(TEST_CSV_URL)
     csv_bytes = test_df.to_csv(index=False).encode("utf-8")
