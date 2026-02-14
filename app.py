@@ -90,10 +90,9 @@ st.caption(
 # ===============================
 # Download test dataset
 # ===============================
-st.subheader("⬇️ Download Test Dataset")
+st.subheader("Download Test Dataset")
 
 TEST_CSV_URL = "https://raw.githubusercontent.com/shromonamittra-cpu/ML_Assignment_2/main/wine_quality_test.csv"
-st.markdown(f"[📄 View raw CSV]({TEST_CSV_URL})")
 
 try:
     test_df = pd.read_csv(TEST_CSV_URL)
@@ -112,7 +111,7 @@ except Exception:
 # ===============================
 df = load_wine_quality()
 
-with st.expander("📊 Dataset Preview"):
+with st.expander("Dataset Preview"):
     st.write("Shape:", df.shape)
     st.dataframe(df.head())
 
@@ -132,7 +131,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 # ===============================
 # Upload labelled test dataset (CSV)
 # ===============================
-st.subheader("📤 Upload Your Test Dataset")
+st.subheader("Upload Your Test Dataset")
 
 uploaded_file = st.file_uploader(
     "Upload a labelled CSV file (must include 'quality' column)",
@@ -142,7 +141,7 @@ uploaded_file = st.file_uploader(
 if uploaded_file is not None:
     try:
         uploaded_df = pd.read_csv(uploaded_file)
-        st.success("✅ File uploaded successfully!")
+        st.success("File uploaded successfully!")
         st.write("Preview of uploaded file:")
         st.dataframe(uploaded_df.head())
     except Exception as e:
@@ -161,7 +160,7 @@ model_name = st.selectbox("Select Model", model_names)
 # ===============================
 # Train only on button click (prevents auto retraining)
 # ===============================
-train_clicked = st.button("▶️ Run Evaluation", type="primary")
+train_clicked = st.button("Run Evaluation", type="primary")
 
 if not train_clicked and "last_results" not in st.session_state:
     st.info("Select a model and click **Run Evaluation** to view metrics.")
@@ -201,7 +200,7 @@ metrics = results["metrics"]
 # ===============================
 # Metrics display
 # ===============================
-st.subheader("📈 Evaluation Metrics")
+st.subheader("Evaluation Metrics")
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("Accuracy", f"{metrics['Accuracy']:.3f}")
@@ -214,7 +213,7 @@ c6.metric("MCC", f"{metrics['MCC']:.3f}")
 # ===============================
 # Confusion Matrix
 # ===============================
-st.subheader("🧮 Confusion Matrix")
+st.subheader("Confusion Matrix")
 
 cm = confusion_matrix(y_test, y_pred, labels=classes)
 cm_df = pd.DataFrame(
@@ -230,4 +229,5 @@ st.dataframe(cm_df)
 # ===============================
 st.subheader("📄 Classification Report")
 st.code(classification_report(y_test, y_pred, zero_division=0))
+
 
