@@ -129,6 +129,25 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=42,
     stratify=y
 )
+# ===============================
+# Upload labelled test dataset (CSV)
+# ===============================
+st.subheader("📤 Upload Your Test Dataset")
+
+uploaded_file = st.file_uploader(
+    "Upload a labelled CSV file (must include 'quality' column)",
+    type=["csv"]
+)
+
+if uploaded_file is not None:
+    try:
+        uploaded_df = pd.read_csv(uploaded_file)
+        st.success("✅ File uploaded successfully!")
+        st.write("Preview of uploaded file:")
+        st.dataframe(uploaded_df.head())
+    except Exception as e:
+        st.error("❌ Could not read the uploaded CSV file.")
+        st.error(str(e))
 
 # ===============================
 # Model selection
@@ -211,3 +230,4 @@ st.dataframe(cm_df)
 # ===============================
 st.subheader("📄 Classification Report")
 st.code(classification_report(y_test, y_pred, zero_division=0))
+
